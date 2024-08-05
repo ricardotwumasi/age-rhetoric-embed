@@ -23,7 +23,6 @@ The code implements WEAT based on the methodology outlined in Caliskan et al. (2
 1. Ensure you have the required dependencies installed (numpy, scipy, sklearn).
 2. Load your pre-trained word embeddings into the `embeddings` dictionary.
 3. Run the WEAT test using the provided function.
-4. Interpret results considering the test statistic and p-value.
 
 ## References
 
