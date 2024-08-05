@@ -37,4 +37,4 @@ Matt Flynn;
 Max Lange;
 Ricardo Twumasi
 
-Please direct all enquiries regarding the main manuscript or this code to: ricardo.twumasi@kcl.ac.uk; maximin.lange@kcl.ac.uk or Flynn, matt.flynn@leicester.ac.uk
+Please direct all enquiries regarding the main manuscript or this code to: ricardo.twumasi@kcl.ac.uk; maximin.lange@kcl.ac.uk or matt.flynn@leicester.ac.uk
