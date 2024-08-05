@@ -33,8 +33,8 @@ The code implements WEAT based on the methodology outlined in Caliskan et al. (2
 
 ## Authors
 
-Matt Flynn
-Max Lange
+Matt Flynn;
+Max Lange;
 Ricardo Twumasi
 
 Please direct all enquiries regarding the main manuscript or this code to: ricardo.twumasi@kcl.ac.uk; maximin.lange@kcl.ac.uk or Flynn, matt.flynn@leicester.ac.uk
