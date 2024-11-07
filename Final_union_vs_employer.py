@@ -25,7 +25,7 @@ model_employer.to(device)
 model_pretrained.to(device)
 
 # Define terms for young and old
-young_terms = ['young', 'youth', 'teenager', 'adolescent', 'juvenile']
+young_terms = ['young', 'youth', 'teenager', 'adolescent', 'juvenile', 'junior']
 old_terms = ['old', 'elderly', 'senior', 'aged', 'mature']
 
 # Define target word sets
@@ -132,8 +132,145 @@ for target_words, (target_X, target_Y) in attribute_sets.items():
 
 # Convert results to DataFrames
 df_weat = pd.DataFrame(weat_results)
-df_seat = pd.DataFrame(seat_results)
 
 # Print the WEAT scores in tables
 print("WEAT Scores:")
 print(tabulate(df_weat, headers='keys', tablefmt='pipe', floatfmt=".4f"))
+
+# After calculating all WEAT scores, collect the g scores:
+import numpy as np
+from scipy.stats import ttest_ind
+from tabulate import tabulate
+import pandas as pd
+
+def collect_g_scores_per_category(model, tokenizer, young_terms, old_terms, attribute_sets):
+    """
+    Calculates g scores for each word in young_terms and old_terms against each attribute set,
+    organized by category.
+
+    Args:
+      model: BERT model.
+      tokenizer: BERT tokenizer.
+      young_terms: List of words representing the "young" concept.
+      old_terms: List of words representing the "old" concept.
+      attribute_sets: Dictionary of attribute sets, where keys are category names 
+                      and values are tuples of target sets (target_X, target_Y).
+
+    Returns:
+      A dictionary where keys are category names and values are lists of g scores 
+      for all words in that category.
+    """
+    all_g_scores = {}
+    for category, (target_X, target_Y) in attribute_sets.items():
+        # Get embeddings
+        w = {}
+        for word_list in [young_terms, old_terms, target_X, target_Y]:
+            for word in word_list:
+                if word not in w:
+                    w[word] = get_bert_embedding_for_word(model, tokenizer, word)
+        
+        # Calculate g scores for all words in the current category
+        category_scores = [g(word, target_X, target_Y, w) for word in young_terms + old_terms]
+        all_g_scores[category] = category_scores
+    
+    return all_g_scores
+
+# Collect g scores per category for each model
+union_scores_per_category = collect_g_scores_per_category(model_union, tokenizer_union, young_terms, old_terms, attribute_sets)
+employer_scores_per_category = collect_g_scores_per_category(model_employer, tokenizer_employer, young_terms, old_terms, attribute_sets)
+pretrained_scores_per_category = collect_g_scores_per_category(model_pretrained, tokenizer_pretrained, young_terms, old_terms, attribute_sets)
+
+# Perform t-tests and calculate Cohen's d for each category
+def cohens_d(x1, x2):
+    pooled_std = np.sqrt((np.var(x1) + np.var(x2)) / 2)
+    return (np.mean(x1) - np.mean(x2)) / pooled_std
+
+comparison_tables = {} 
+for category in attribute_sets.keys():
+    comparisons = pd.DataFrame({
+        'Comparison': ['Union vs Employer', 'Union vs Pretrained', 'Employer vs Pretrained'],
+        't_statistic': [
+            ttest_ind(union_scores_per_category[category], employer_scores_per_category[category]).statistic,
+            ttest_ind(union_scores_per_category[category], pretrained_scores_per_category[category]).statistic,
+            ttest_ind(employer_scores_per_category[category], pretrained_scores_per_category[category]).statistic
+        ],
+        'p_value': [
+            ttest_ind(union_scores_per_category[category], employer_scores_per_category[category]).pvalue,
+            ttest_ind(union_scores_per_category[category], pretrained_scores_per_category[category]).pvalue,
+            ttest_ind(employer_scores_per_category[category], pretrained_scores_per_category[category]).pvalue
+        ],
+        'cohens_d': [
+            cohens_d(union_scores_per_category[category], employer_scores_per_category[category]),
+            cohens_d(union_scores_per_category[category], pretrained_scores_per_category[category]),
+            cohens_d(employer_scores_per_category[category], pretrained_scores_per_category[category])
+        ]
+    })
+    comparison_tables[category] = comparisons
+
+# Print comparison tables for each category
+for category, table in comparison_tables.items():
+    print(f"\nWEAT Score Comparisons Between Models for category: {category}")
+    print(tabulate(table, headers='keys', tablefmt='pipe', floatfmt=".4f"))
+print(tabulate(comparisons, headers='keys', tablefmt='pipe', floatfmt=".4f"))
+
+def format_results_into_tables(results):
+    # Table 1: Within-model comparisons (young vs old)
+    within_rows = []
+    for category, cat_results in results.items():
+        row = {
+            'Category': category,
+            'Union_young': f"{cat_results['young_scores']['Union']['mean']:.3f} ± {cat_results['young_scores']['Union']['std']:.3f}",
+            'Union_old': f"{cat_results['old_scores']['Union']['mean']:.3f} ± {cat_results['old_scores']['Union']['std']:.3f}",
+            'Union_p': cat_results['within_model']['Union']['p_value'],
+            'Union_d': cat_results['within_model']['Union']['cohens_d'],
+            'Employer_young': f"{cat_results['young_scores']['Employer']['mean']:.3f} ± {cat_results['young_scores']['Employer']['std']:.3f}",
+            'Employer_old': f"{cat_results['old_scores']['Employer']['mean']:.3f} ± {cat_results['old_scores']['Employer']['std']:.3f}",
+            'Employer_p': cat_results['within_model']['Employer']['p_value'],
+            'Employer_d': cat_results['within_model']['Employer']['cohens_d'],
+            'Pretrained_young': f"{cat_results['young_scores']['Pretrained']['mean']:.3f} ± {cat_results['young_scores']['Pretrained']['std']:.3f}",
+            'Pretrained_old': f"{cat_results['old_scores']['Pretrained']['mean']:.3f} ± {cat_results['old_scores']['Pretrained']['std']:.3f}",
+            'Pretrained_p': cat_results['within_model']['Pretrained']['p_value'],
+            'Pretrained_d': cat_results['within_model']['Pretrained']['cohens_d']
+        }
+        within_rows.append(row)
+
+    # Table 2: Between-model comparisons
+    between_rows = []
+    for category, cat_results in results.items():
+        # For young terms
+        row_young = {
+            'Category': f"{category} (Young Terms)",
+            'Union_vs_Employer_p': cat_results['between_model_young']['Union_vs_Employer']['p_value'],
+            'Union_vs_Employer_d': cat_results['between_model_young']['Union_vs_Employer']['cohens_d'],
+            'Union_vs_Pretrained_p': cat_results['between_model_young']['Union_vs_Pretrained']['p_value'],
+            'Union_vs_Pretrained_d': cat_results['between_model_young']['Union_vs_Pretrained']['cohens_d'],
+            'Employer_vs_Pretrained_p': cat_results['between_model_young']['Employer_vs_Pretrained']['p_value'],
+            'Employer_vs_Pretrained_d': cat_results['between_model_young']['Employer_vs_Pretrained']['cohens_d']
+        }
+        between_rows.append(row_young)
+        
+        # For old terms
+        row_old = {
+            'Category': f"{category} (Old Terms)",
+            'Union_vs_Employer_p': cat_results['between_model_old']['Union_vs_Employer']['p_value'],
+            'Union_vs_Employer_d': cat_results['between_model_old']['Union_vs_Employer']['cohens_d'],
+            'Union_vs_Pretrained_p': cat_results['between_model_old']['Union_vs_Pretrained']['p_value'],
+            'Union_vs_Pretrained_d': cat_results['between_model_old']['Union_vs_Pretrained']['cohens_d'],
+            'Employer_vs_Pretrained_p': cat_results['between_model_old']['Employer_vs_Pretrained']['p_value'],
+            'Employer_vs_Pretrained_d': cat_results['between_model_old']['Employer_vs_Pretrained']['cohens_d']
+        }
+        between_rows.append(row_old)
+
+    df_within = pd.DataFrame(within_rows)
+    df_between = pd.DataFrame(between_rows)
+
+    print("\nTable 1: Within-Model Comparisons (Young vs Old):")
+    print(tabulate(df_within, headers='keys', tablefmt='pipe', floatfmt=".4f"))
+    
+    print("\nTable 2: Between-Model Comparisons:")
+    print(tabulate(df_between, headers='keys', tablefmt='pipe', floatfmt=".4f"))
+    
+    return df_within, df_between
+
+# Run and display results
+df_within, df_between = format_results_into_tables(results)
