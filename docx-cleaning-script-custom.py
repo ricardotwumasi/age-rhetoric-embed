@@ -45,14 +45,14 @@ with open(cleaned_txt_path, 'w', encoding='utf-8') as txt_file:
 
 print(f"Cleaned text saved to: {cleaned_txt_path}")
 
-# Let's start by reading the content of the file to remove all timecodes in the format **:**:**
+# Read the content of the file to remove all timecodes in the format **:**:**
 file_path = '/mnt/data/all_union_running_text_only.txt'
 
 # Reading the file
 with open(file_path, 'r') as file:
     content = file.read()
 
-# Now let's use a regular expression to remove all timecodes in the format **:**:**
+# Use a regular expression to remove all timecodes in the format **:**:**
 import re
 
 # Regular expression pattern to match timecodes like 02:54:57
