@@ -32,6 +32,9 @@ The code implements WEAT based on the methodology outlined in Caliskan et al. (2
 - May, C., A. Wang, S. Bordia, S. R. Bowman and R. Rudinger (2019). 'On Measuring Social Biases in Sentence Encoders', arXiv.
 
   
+## AI Statement
+
+This code was edited with the assistance of Claude Sonnet 3.5 (Anthropic, San Francisco: CA) and Gemini 1.5 Advanced Pro (Alphabet, Mountain View: CA)
 
 ## Authors
 
